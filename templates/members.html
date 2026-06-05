@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Members{% endblock %}
+{% block page_title %}Members{% endblock %}
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <input type="text" id="search-input" placeholder="🔍 Search members..." onkeyup="filterMembers()" style="padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:240px;font-family:inherit">
+    <select id="filter-role" onchange="filterMembers()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+      <option value="">All Roles</option>
+      <option>Head of Protocol</option>
+      <option>General Member</option>
+      <option>Operations & Security Officer</option>
+      <option>Secretary & Financial Officer</option>
+      <option>Welfare & Hospitality Officer</option>
+      <option>Media Officer</option>
+      <option>Soul Winning Assistant</option>
+    </select>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost btn-sm" onclick="showInactive()" id="inactive-btn">Show Inactive</button>
+    {% if session.role in ('admin','secretary') %}
+    <button class="btn btn-primary" onclick="openAddModal()">+ Add Member</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stats row -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" id="member-stats">
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0">
+    <div style="font-size:24px;font-weight:800;color:var(--navy)" id="stat-total">—</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Total Members</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0">
+    <div style="font-size:24px;font-weight:800;color:#22c55e" id="stat-active">—</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Active</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0">
+    <div style="font-size:24px;font-weight:800;color:var(--gold)" id="stat-roles">—</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Distinct Roles</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0">
+    <div style="font-size:24px;font-weight:800;color:#ef4444" id="stat-inactive">—</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Inactive</div>
+  </div>
+</div>
+
+<!-- Members Grid -->
+<div id="members-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+<div id="empty-state" class="empty" style="display:none"><div class="empty-icon">👥</div><p>No members found</p></div>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-bg" id="member-modal">
+  <div class="modal" style="width:640px">
+    <div class="modal-header">
+      <h3 id="modal-title">➕ Add New Member</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <input type="hidden" id="m-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="form-group"><label>Full Name *</label><input type="text" id="m-name" placeholder="e.g. John Mensah"></div>
+      <div class="form-group"><label>Member Code</label><input type="text" id="m-code" placeholder="Auto-generated" disabled style="background:var(--surface);color:var(--text-muted)"></div>
+      <div class="form-group"><label>Role / Title</label>
+        <select id="m-role">
+          <option>General Member</option><option>Head of Protocol</option>
+          <option>Secretary & Financial Officer</option><option>Operations & Security Officer</option>
+          <option>Welfare & Hospitality Officer</option><option>Soul Winning Coordinator (Assistant)</option>
+          <option>Media Officer</option><option>Protocol Officer</option><option>Usher</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Office / Department</label><input type="text" id="m-office" placeholder="e.g. Protocol Department"></div>
+      <div class="form-group"><label>Phone</label><input type="tel" id="m-phone" placeholder="024 000 0000"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="m-email" placeholder="email@example.com"></div>
+      <div class="form-group"><label>Date Joined</label><input type="date" id="m-joined"></div>
+      <div class="form-group"><label>Spiritual Status</label>
+        <select id="m-spiritual">
+          <option>Active</option><option>Baptized</option><option>In Training</option>
+          <option>On Probation</option><option>Suspended</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Emergency Contact</label><input type="text" id="m-emergency" placeholder="Name"></div>
+      <div class="form-group"><label>Emergency Phone</label><input type="tel" id="m-emergency-phone" placeholder="024 000 0000"></div>
+    </div>
+    <div class="form-group" style="margin-top:14px"><label>Skills / Gifting Tags</label>
+      <input type="text" id="m-skills" placeholder="e.g. Sound, Ushering, Driving, Photography (comma-separated)">
+    </div>
+    <div class="form-group" style="margin-top:14px"><label>Private Notes (Admin only)</label>
+      <textarea id="m-notes" rows="2" placeholder="Internal notes visible only to admin..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMember()">💾 Save Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- REMOVE CONFIRM MODAL -->
+<div class="modal-bg" id="remove-modal">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <h3>⚠️ Deactivate Member</h3>
+      <button class="modal-close" onclick="document.getElementById('remove-modal').classList.remove('open')">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Are you sure you want to deactivate <strong id="remove-name"></strong>?</p>
+    <p style="font-size:12px;color:#94a3b8;line-height:1.5">Their records (attendance, welfare, disciplinary) will be fully preserved. You can restore them at any time from the Inactive tab.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('remove-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmRemove()">Deactivate</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allMembers = [];
+let showingInactive = false;
+let pendingRemoveId = null;
+
+const roleColors = {
+  'Head of Protocol':'#C9A84C','Secretary & Financial Officer':'#3b82f6',
+  'Media Officer':'#8b5cf6','Welfare & Hospitality Officer':'#10b981',
+  'Operations & Security Officer':'#ef4444','Soul Winning Coordinator (Assistant)':'#f59e0b',
+  'Soul Winning Assistant':'#f59e0b','General Member':'#64748b','Protocol Officer':'#0ea5e9',
+  'Usher':'#06b6d4'
+};
+
+async function loadMembers(){
+  const res = await fetch('/api/members?all=1');
+  allMembers = await res.json();
+  updateStats();
+  renderMembers();
+}
+
+function updateStats(){
+  const active = allMembers.filter(m=>m.active);
+  const inactive = allMembers.filter(m=>!m.active);
+  const roles = new Set(allMembers.filter(m=>m.active).map(m=>m.role));
+  document.getElementById('stat-total').textContent = allMembers.length;
+  document.getElementById('stat-active').textContent = active.length;
+  document.getElementById('stat-roles').textContent = roles.size;
+  document.getElementById('stat-inactive').textContent = inactive.length;
+}
+
+function renderMembers(){
+  const query = (document.getElementById('search-input').value||'').toLowerCase();
+  const roleFilter = document.getElementById('filter-role').value;
+  let members = allMembers.filter(m => showingInactive ? !m.active : m.active);
+  if(query) members = members.filter(m => m.name.toLowerCase().includes(query) || (m.role||'').toLowerCase().includes(query) || (m.member_code||'').toLowerCase().includes(query));
+  if(roleFilter) members = members.filter(m => m.role === roleFilter);
+
+  const grid = document.getElementById('members-grid');
+  const empty = document.getElementById('empty-state');
+  if(!members.length){ grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  const isAdmin = '{{ session.role }}' === 'admin' || '{{ session.role }}' === 'secretary';
+  grid.innerHTML = members.map(m=>{
+    const color = roleColors[m.role]||'#64748b';
+    const initials = m.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const skills = m.skills ? m.skills.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    return `<div class="card" style="margin-bottom:0;border:1px solid var(--border);transition:.2s;cursor:pointer" onmouseover="this.style.borderColor='${color}';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <a href="/members/${m.id}" style="text-decoration:none;flex-shrink:0">
+          <div style="width:46px;height:46px;background:${color}22;border:2px solid ${color};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:${color}">${initials}</div>
+        </a>
+        <div style="flex:1;min-width:0">
+          <a href="/members/${m.id}" style="text-decoration:none">
+            <div style="font-weight:700;font-size:14px;color:var(--navy)">${m.name}</div>
+          </a>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${m.office||m.role||''}</div>
+          <div style="font-size:10px;color:${color};font-weight:700;margin-top:2px;font-family:'DM Mono',monospace">${m.member_code||''}</div>
+        </div>
+        ${isAdmin && m.active ? `<div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-xs" onclick="openEditModal(event,${JSON.stringify(m).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="btn btn-danger btn-xs" onclick="openRemove(event,${m.id},'${m.name.replace(/'/g,"\\'")}')">🗑️</button>
+        </div>` : ''}
+        ${!m.active ? `<span class="badge badge-neutral">Inactive</span>` : ''}
+      </div>
+      ${m.phone ? `<div style="margin-top:10px;font-size:12px;color:var(--text-muted)">📞 ${m.phone}</div>` : ''}
+      ${skills.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+        ${skills.map(s=>`<span style="background:${color}15;color:${color};border:1px solid ${color}30;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">${s}</span>`).join('')}
+      </div>` : ''}
+      ${!m.active ? `<div style="margin-top:10px"><button class="btn btn-success btn-xs" onclick="restoreMember(event,${m.id})">♻️ Restore</button></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function filterMembers(){ renderMembers(); }
+
+function showInactive(){
+  showingInactive = !showingInactive;
+  document.getElementById('inactive-btn').textContent = showingInactive ? 'Show Active' : 'Show Inactive';
+  document.getElementById('inactive-btn').className = showingInactive ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+  renderMembers();
+}
+
+function openAddModal(){
+  document.getElementById('m-id').value='';
+  document.getElementById('m-name').value='';
+  document.getElementById('m-code').value='Auto-generated';
+  document.getElementById('m-role').selectedIndex=0;
+  document.getElementById('m-office').value='';
+  document.getElementById('m-phone').value='';
+  document.getElementById('m-email').value='';
+  document.getElementById('m-joined').value=new Date().toISOString().split('T')[0];
+  document.getElementById('m-spiritual').selectedIndex=0;
+  document.getElementById('m-emergency').value='';
+  document.getElementById('m-emergency-phone').value='';
+  document.getElementById('m-skills').value='';
+  document.getElementById('m-notes').value='';
+  document.getElementById('modal-title').textContent='➕ Add New Member';
+  document.getElementById('member-modal').classList.add('open');
+}
+
+function openEditModal(e, m){
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('m-id').value=m.id;
+  document.getElementById('m-name').value=m.name||'';
+  document.getElementById('m-code').value=m.member_code||'';
+  document.getElementById('m-office').value=m.office||'';
+  document.getElementById('m-phone').value=m.phone||'';
+  document.getElementById('m-email').value=m.email||'';
+  document.getElementById('m-joined').value=m.date_joined||'';
+  document.getElementById('m-emergency').value=m.emergency_contact||'';
+  document.getElementById('m-emergency-phone').value=m.emergency_phone||'';
+  document.getElementById('m-skills').value=m.skills||'';
+  document.getElementById('m-notes').value=m.notes||'';
+  // Set selects
+  ['m-role','m-spiritual'].forEach(id=>{
+    const sel=document.getElementById(id);
+    const field = id==='m-role' ? m.role : m.spiritual_status;
+    [...sel.options].forEach(o=>{ if(o.value===field) o.selected=true; });
+  });
+  document.getElementById('modal-title').textContent='✏️ Edit Member';
+  document.getElementById('member-modal').classList.add('open');
+}
+
+function closeModal(){ document.getElementById('member-modal').classList.remove('open'); }
+
+async function saveMember(){
+  const id = document.getElementById('m-id').value;
+  const name = document.getElementById('m-name').value.trim();
+  if(!name){ alert('Name is required.'); return; }
+  const data = {
+    name, role:document.getElementById('m-role').value,
+    office:document.getElementById('m-office').value.trim()||document.getElementById('m-role').value,
+    phone:document.getElementById('m-phone').value.trim(),
+    email:document.getElementById('m-email').value.trim(),
+    date_joined:document.getElementById('m-joined').value,
+    spiritual_status:document.getElementById('m-spiritual').value,
+    emergency_contact:document.getElementById('m-emergency').value.trim(),
+    emergency_phone:document.getElementById('m-emergency-phone').value.trim(),
+    skills:document.getElementById('m-skills').value.trim(),
+    notes:document.getElementById('m-notes').value.trim()
+  };
+  const url = id ? `/api/members/${id}` : '/api/members';
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d = await res.json();
+  if(!d.success){ alert(d.error||'Error saving.'); return; }
+  closeModal();
+  loadMembers();
+}
+
+function openRemove(e, id, name){
+  e.preventDefault(); e.stopPropagation();
+  pendingRemoveId=id;
+  document.getElementById('remove-name').textContent=name;
+  document.getElementById('remove-modal').classList.add('open');
+}
+
+async function confirmRemove(){
+  if(!pendingRemoveId) return;
+  await fetch(`/api/members/${pendingRemoveId}`,{method:'DELETE'});
+  document.getElementById('remove-modal').classList.remove('open');
+  loadMembers();
+}
+
+async function restoreMember(e, id){
+  e.preventDefault(); e.stopPropagation();
+  await fetch(`/api/members/${id}/restore`,{method:'POST'});
+  loadMembers();
+}
+
+loadMembers();
+</script>
+{% endblock %}

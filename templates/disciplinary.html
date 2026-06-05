@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Disciplinary{% endblock %}
+{% block page_title %}Disciplinary Records{% endblock %}
+{% block content %}
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('log',this)">⚖️ Log Case</div>
+  <div class="tab" onclick="showTab('records',this)">📋 All Records</div>
+  <div class="tab" onclick="showTab('summary',this)">📊 Warning Summary</div>
+</div>
+
+<!-- ── LOG CASE ── -->
+<div id="tab-log">
+<div style="display:grid;grid-template-columns:400px 1fr;gap:18px;align-items:flex-start">
+  <div class="card">
+    <div class="card-header"><h3>Log Disciplinary Case</h3></div>
+    <div id="alert-disc"></div>
+
+    <!-- Escalation indicator -->
+    <div id="escalation-panel" style="display:none;margin-bottom:14px;background:var(--surface);border-radius:8px;padding:12px;border:1px solid var(--border)">
+      <p style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px">Current Standing for Selected Member</p>
+      <div id="escalation-info"></div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Member *</label>
+      <select id="disc-member" onchange="showEscalation()" style="font-family:inherit">
+        <option value="">-- Select Member --</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Date *</label><input type="date" id="disc-date"></div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Code of Conduct Section</label>
+      <select id="disc-section" style="font-family:inherit">
+        <option value="">-- Select Section --</option>
+        <option>1. Attendance & Punctuality</option>
+        <option>2. Insubordination & Disrespect</option>
+        <option>3. Confidentiality Breach</option>
+        <option>4. Misconduct & Immoral Behaviour</option>
+        <option>5. Negligence of Duty</option>
+        <option>6. Dressing & Appearance</option>
+        <option>7. Social Media Conduct</option>
+        <option>8. Conflict of Interest</option>
+        <option>9. Substance, Health & Spiritual Conduct</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Offence Description *</label>
+      <textarea id="disc-offence" rows="3" placeholder="Describe the offence clearly..."></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Action Taken *</label>
+      <select id="disc-action" style="font-family:inherit">
+        <option>Verbal Warning</option>
+        <option>Written Warning</option>
+        <option>Suspension</option>
+        <option>Outright Removal</option>
+        <option>Counselling</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Issued By</label>
+      <input type="text" id="disc-issued" value="Mr. Asare Enock">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Remarks / Outcome</label>
+      <textarea id="disc-remarks" rows="2" placeholder="Additional remarks, expected outcome..."></textarea>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">
+      ℹ️ Verbal and Written Warnings auto-expire after 6 months of good conduct.
+    </div>
+    <button class="btn btn-danger" onclick="saveDisc()">💾 Save Record</button>
+  </div>
+
+  <!-- Code of Conduct Reference -->
+  <div class="card">
+    <div class="card-header"><h3>Code of Conduct Reference</h3></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      {% for sec, desc in [
+        ('1. Attendance & Punctuality','Members are expected to attend all scheduled services and meetings on time. Persistent lateness or unexplained absences will be addressed.'),
+        ('2. Insubordination & Disrespect','All members must show respect to leadership and fellow members. Verbal or behavioural disrespect will not be tolerated.'),
+        ('3. Confidentiality Breach','Information shared within team meetings and pastoral interactions is strictly confidential.'),
+        ('4. Misconduct & Immoral Behaviour','Members are expected to uphold Christian standards of conduct in and outside the church.'),
+        ('5. Negligence of Duty','All assigned duties must be carried out diligently. Negligence affects the entire team\'s ministry.'),
+        ('6. Dressing & Appearance','Members must dress modestly and in accordance with the team dress code during all official activities.'),
+        ('7. Social Media Conduct','Members must not post content that brings the church or team into disrepute.'),
+        ('8. Conflict of Interest','Members must declare any personal interests that may conflict with their duties.'),
+        ('9. Substance, Health & Spiritual Conduct','Members must maintain personal spiritual discipline and avoid substance abuse.')
+      ] %}
+      <div style="background:var(--surface);border-radius:8px;padding:10px 12px;border-left:3px solid var(--gold)">
+        <p style="font-size:12px;font-weight:700;color:var(--navy)">{{ sec }}</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.4">{{ desc }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ── ALL RECORDS ── -->
+<div id="tab-records" style="display:none">
+  <div class="card">
+    <div class="card-header">
+      <h3>All Disciplinary Records</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="filter-disc-member" onchange="loadDisc()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
+          <option value="">All Members</option>
+        </select>
+        <select id="filter-disc-action" onchange="loadDisc()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
+          <option value="">All Actions</option>
+          <option>Verbal Warning</option><option>Written Warning</option>
+          <option>Suspension</option><option>Outright Removal</option><option>Counselling</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Date</th><th>Member</th><th>Section</th><th>Offence</th><th>Action</th><th>Issued By</th><th>Expiry</th><th>Ack.</th></tr></thead>
+      <tbody id="disc-body"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── WARNING SUMMARY ── -->
+<div id="tab-summary" style="display:none">
+  <div class="card">
+    <div class="card-header"><h3>Warning & Standing Summary per Member</h3></div>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Member</th><th>Verbal</th><th>Written</th><th>Suspensions</th><th>Counselling</th><th>Total</th><th>Standing</th><th>Next Step</th></tr></thead>
+      <tbody id="warn-body"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Escalation Ladder -->
+  <div class="card">
+    <div class="card-header"><h3>Disciplinary Escalation Ladder</h3></div>
+    <div style="display:flex;gap:0;align-items:stretch;flex-wrap:wrap">
+      {% for step, color, desc in [
+        ('1st Offence — Verbal Warning','#f59e0b','Informal discussion with the Head of Protocol. Noted on record. Expires after 6 months of good conduct.'),
+        ('2nd Offence — Written Warning','#ef4444','Formal written notice issued and signed. Member acknowledges receipt. Expires after 6 months.'),
+        ('3rd Offence — Suspension','#991b1b','Temporary removal from duties for a defined period. Leadership review required.'),
+        ('Final — Outright Removal','#450a0a','Permanent removal from the Protocol & Media Team. Requires full leadership approval.')
+      ] %}
+      <div style="flex:1;min-width:180px;background:{{ color }}18;border-top:4px solid {{ color }};padding:14px;border-radius:0">
+        <p style="font-size:11px;font-weight:800;color:{{ color }};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">{{ step }}</p>
+        <p style="font-size:12px;color:var(--text-muted);line-height:1.4">{{ desc }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+let members = [];
+let allDisc = [];
+
+document.getElementById('disc-date').value = new Date().toISOString().split('T')[0];
+
+fetch('/api/members').then(r=>r.json()).then(data=>{
+  members = data;
+  ['disc-member','filter-disc-member'].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    data.forEach(m=>sel.innerHTML+=`<option value="${m.id}">${m.name}</option>`);
+  });
+  loadDisc();
+  loadWarnSummary();
+});
+
+async function loadDisc(){
+  const res = await fetch('/api/disciplinary');
+  allDisc = await res.json();
+  renderDisc(allDisc);
+}
+
+function renderDisc(rows){
+  const mid = document.getElementById('filter-disc-member').value;
+  const action = document.getElementById('filter-disc-action').value;
+  let data = rows;
+  if(mid) data = data.filter(r=>r.member_id==mid);
+  if(action) data = data.filter(r=>r.action_taken===action);
+
+  const actionStyle = {
+    'Verbal Warning':  'background:#fef9c3;color:#713f12',
+    'Written Warning': 'background:#fee2e2;color:#991b1b',
+    'Suspension':      'background:#450a0a20;color:#991b1b',
+    'Outright Removal':'background:#450a0a;color:#fca5a5',
+    'Counselling':     'background:#dcfce7;color:#166534'
+  };
+
+  document.getElementById('disc-body').innerHTML = data.length
+    ? data.map(r=>`<tr>
+        <td style="font-size:12px;color:var(--text-muted)">${r.date}</td>
+        <td><a href="/members/${r.member_id}" style="font-weight:700;text-decoration:none;color:var(--navy)">${r.name}</a></td>
+        <td style="font-size:11px;color:var(--text-muted)">${r.section||'—'}</td>
+        <td style="font-size:12px;max-width:200px">${r.offence.slice(0,80)}${r.offence.length>80?'…':''}</td>
+        <td><span class="badge" style="${actionStyle[r.action_taken]||''};font-size:10px">${r.action_taken}</span></td>
+        <td style="font-size:11px;color:var(--text-muted)">${r.issued_by||''}</td>
+        <td style="font-size:11px;color:${r.expiry_date?'var(--text-muted)':'#aaa'}">${r.expiry_date||'No expiry'}</td>
+        <td style="text-align:center">
+          ${r.acknowledged
+            ? `<span title="Acknowledged on ${r.acknowledged_date}" style="color:#22c55e;font-size:16px">✅</span>`
+            : `<button class="btn btn-ghost btn-xs" onclick="acknowledge(${r.id})">Acknowledge</button>`
+          }
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="8"><div class="empty"><div class="empty-icon">✅</div><p>No records found</p></div></td></tr>';
+}
+
+async function loadWarnSummary(){
+  const res = await fetch('/api/disciplinary');
+  const rows = await res.json();
+  const summary = {};
+  members.forEach(m=>summary[m.id]={id:m.id,name:m.name,verbal:0,written:0,suspension:0,counselling:0,removal:0,total:0});
+  rows.forEach(r=>{
+    if(!summary[r.member_id]) return;
+    summary[r.member_id].total++;
+    if(r.action_taken==='Verbal Warning') summary[r.member_id].verbal++;
+    else if(r.action_taken==='Written Warning') summary[r.member_id].written++;
+    else if(r.action_taken==='Suspension') summary[r.member_id].suspension++;
+    else if(r.action_taken==='Counselling') summary[r.member_id].counselling++;
+    else if(r.action_taken==='Outright Removal') summary[r.member_id].removal++;
+  });
+  document.getElementById('warn-body').innerHTML = Object.values(summary).map(s=>{
+    let standing, next, standingClass;
+    if(s.removal>0){standing='❌ Removed';standingClass='badge-risk';next='Case closed';}
+    else if(s.suspension>0){standing='⛔ Suspended';standingClass='badge-suspended';next='Review by leadership';}
+    else if(s.written>=2){standing='🔴 At Risk';standingClass='badge-risk';next='Suspension';}
+    else if(s.written===1){standing='🟠 Written Warning';standingClass='badge-warn';next='2nd Warning → Suspension';}
+    else if(s.verbal>=1){standing='🟡 Verbal Warning';standingClass='badge-warn';next='Written Warning';}
+    else{standing='🟢 Good Standing';standingClass='badge-good';next='—';}
+    return `<tr>
+      <td><a href="/members/${s.id}" style="font-weight:700;text-decoration:none;color:var(--navy)">${s.name}</a></td>
+      <td style="color:#713f12;font-weight:700">${s.verbal}</td>
+      <td style="color:#991b1b;font-weight:700">${s.written}</td>
+      <td style="color:#6b0000;font-weight:700">${s.suspension}</td>
+      <td style="color:#166534;font-weight:700">${s.counselling}</td>
+      <td style="font-weight:700">${s.total}</td>
+      <td><span class="badge ${standingClass}" style="font-size:10px">${standing}</span></td>
+      <td style="font-size:11px;color:var(--text-muted)">${next}</td>
+    </tr>`;
+  }).join('');
+}
+
+function showEscalation(){
+  const mid = document.getElementById('disc-member').value;
+  if(!mid){document.getElementById('escalation-panel').style.display='none';return;}
+  const memberDisc = allDisc.filter(r=>r.member_id==mid);
+  const verbal = memberDisc.filter(r=>r.action_taken==='Verbal Warning').length;
+  const written = memberDisc.filter(r=>r.action_taken==='Written Warning').length;
+  const suspension = memberDisc.filter(r=>r.action_taken==='Suspension').length;
+  let status, color, next;
+  if(suspension>0){status='⛔ Currently Suspended';color='#991b1b';next='Outright Removal if reoffence';}
+  else if(written>=2){status='🔴 At Risk';color='#ef4444';next='Next step: Suspension';}
+  else if(written===1){status='🟠 1 Written Warning';color='#f59e0b';next='Next step: 2nd Written → Suspension';}
+  else if(verbal>=1){status='🟡 Has Verbal Warning';color='#f59e0b';next='Next step: Written Warning';}
+  else{status='🟢 Clean Record';color='#22c55e';next='No prior warnings';}
+  document.getElementById('escalation-panel').style.display='block';
+  document.getElementById('escalation-info').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span style="font-weight:700;font-size:13px;color:${color}">${status}</span>
+      <span style="font-size:11px;color:var(--text-muted)">${next}</span>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Verbal: ${verbal} · Written: ${written} · Suspension: ${suspension}</div>`;
+}
+
+async function acknowledge(id){
+  await fetch(`/api/disciplinary/${id}/acknowledge`,{method:'POST'});
+  loadDisc();
+}
+
+async function saveDisc(){
+  const data = {
+    member_id: document.getElementById('disc-member').value,
+    date: document.getElementById('disc-date').value,
+    offence: document.getElementById('disc-offence').value,
+    section: document.getElementById('disc-section').value,
+    action_taken: document.getElementById('disc-action').value,
+    issued_by: document.getElementById('disc-issued').value,
+    remarks: document.getElementById('disc-remarks').value,
+  };
+  if(!data.member_id||!data.offence){alert('Please select a member and describe the offence.');return;}
+  await fetch('/api/disciplinary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  document.getElementById('alert-disc').innerHTML='<div class="alert alert-success">✅ Disciplinary record saved.</div>';
+  setTimeout(()=>document.getElementById('alert-disc').innerHTML='',3000);
+  document.getElementById('disc-offence').value='';
+  document.getElementById('disc-remarks').value='';
+  document.getElementById('disc-member').value='';
+  document.getElementById('escalation-panel').style.display='none';
+  loadDisc(); loadWarnSummary();
+}
+
+function showTab(name, el){
+  ['log','records','summary'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(name==='records') renderDisc(allDisc);
+  if(name==='summary') loadWarnSummary();
+}
+</script>
+{% endblock %}

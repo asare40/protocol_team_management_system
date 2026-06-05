@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+
+<!-- Alerts Banner -->
+{% if alerts %}
+<div style="background:#fff8e1;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px">
+  <span style="font-size:20px;flex-shrink:0">⚠️</span>
+  <div>
+    <p style="font-size:13px;font-weight:700;color:#713f12;margin-bottom:4px">{{ alerts|length }} Alert{{ 's' if alerts|length > 1 else '' }} Require Attention</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+      {% for a in alerts[:6] %}
+      <span style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;color:#713f12">
+        {% if a.type == 'attendance' %}📋{% else %}💰{% endif %} {{ a.name }} — {{ a.msg }}
+      </span>
+      {% endfor %}
+      {% if alerts|length > 6 %}<span style="font-size:11px;color:#92400e;font-weight:600">+{{ alerts|length - 6 }} more</span>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card navy">
+    <div class="stat-icon">👥</div>
+    <h2>{{ members_count }}</h2>
+    <p>Active Members</p>
+  </div>
+  <div class="stat-card gold">
+    <div class="stat-icon">📋</div>
+    <h2>{{ att_count }}</h2>
+    <p>Attendance Records</p>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">💰</div>
+    <h2>GH₵{{ welfare_bal }}</h2>
+    <p>Welfare Balance</p>
+    <div class="stat-trend up" style="font-size:10px">In: GH₵{{ welfare_in }} · Out: GH₵{{ welfare_out }}</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-icon">⚖️</div>
+    <h2>{{ disc_count }}</h2>
+    <p>Active Cases</p>
+  </div>
+</div>
+
+<!-- Main Grid -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+
+  <!-- Attendance This Month -->
+  <div class="card">
+    <div class="card-header">
+      <h3>This Month's Attendance</h3>
+      <a href="/attendance" class="btn btn-ghost btn-sm">View All →</a>
+    </div>
+    {% if att_this_month and att_this_month.total %}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      {% for label, val, color in [('Present', att_this_month.present, '#22c55e'), ('Absent', att_this_month.absent, '#ef4444'), ('Late', att_this_month.late, '#f59e0b'), ('Excused', att_this_month.excused, '#3b82f6')] %}
+      <div style="text-align:center;background:var(--surface);border-radius:8px;padding:10px">
+        <div style="font-size:20px;font-weight:800;color:{{ color }}">{{ val or 0 }}</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px">{{ label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="progress">
+      {% set total = att_this_month.total or 1 %}
+      <div class="progress-bar" style="width:{{ ((att_this_month.present or 0)/total*100)|round }}%;background:#22c55e"></div>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:6px;font-weight:500">
+      {{ ((att_this_month.present or 0)/(att_this_month.total or 1)*100)|round }}% attendance rate this month
+    </p>
+    {% else %}
+    <div class="empty"><div class="empty-icon">📋</div><p>No attendance data this month yet</p></div>
+    {% endif %}
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card">
+    <div class="card-header"><h3>Quick Actions</h3></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <a href="/attendance" class="btn btn-primary" style="justify-content:center">📋 Mark Attendance</a>
+      <a href="/duty" class="btn btn-gold" style="justify-content:center">🛡️ Duty Roster</a>
+      <a href="/welfare" class="btn btn-success" style="justify-content:center">💰 Record Payment</a>
+      <a href="/members" class="btn btn-ghost" style="justify-content:center">👥 Manage Members</a>
+      <a href="/disciplinary" class="btn btn-danger" style="justify-content:center">⚖️ Log Case</a>
+      <a href="/reports" class="btn btn-ghost" style="justify-content:center">📈 View Reports</a>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Grid -->
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px">
+
+  <!-- Recent Attendance -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Recent Attendance</h3>
+      <a href="/attendance" class="btn btn-ghost btn-sm">All Records →</a>
+    </div>
+    {% if recent_att %}
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Date</th><th>Service</th><th>Member</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for r in recent_att %}
+        <tr>
+          <td style="font-size:12px;color:var(--text-muted)">{{ r.date }}</td>
+          <td style="font-size:12px">{{ r.service }}</td>
+          <td><strong>{{ r.name }}</strong></td>
+          <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty"><div class="empty-icon">📋</div><p>No attendance records yet</p></div>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <!-- Upcoming Duty -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header">
+        <h3>Upcoming Duty</h3>
+        <a href="/duty" class="btn btn-ghost btn-sm">Full Roster →</a>
+      </div>
+      {% if upcoming_duty %}
+        {% for d in upcoming_duty %}
+        <div style="background:var(--surface);border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid var(--gold)">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600">{{ d.date }} · Week {{ d.week_number }}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--navy)">🛡️ {{ d.duty1 }} &amp; {{ d.duty2 }}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Standby: {{ d.standby }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty" style="padding:20px"><div class="empty-icon">🛡️</div><p>No upcoming duty scheduled</p></div>
+      {% endif %}
+    </div>
+
+    <!-- Announcements -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header">
+        <h3>Announcements</h3>
+        {% if session.role in ('admin','secretary') %}
+        <button class="btn btn-gold btn-sm" onclick="document.getElementById('ann-modal').classList.add('open')">+ Post</button>
+        {% endif %}
+      </div>
+      {% if announcements %}
+        {% for a in announcements %}
+        <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            {% if a.priority == 'urgent' %}<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:4px;font-weight:700">URGENT</span>{% endif %}
+            <strong style="font-size:12px;color:var(--navy)">{{ a.title }}</strong>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);line-height:1.4">{{ a.body }}</p>
+          <p style="font-size:10px;color:var(--border-color);margin-top:3px;color:#aaa">By {{ a.created_by }} · {{ a.created_at[:10] }}</p>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty" style="padding:20px"><div class="empty-icon">📣</div><p>No announcements</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Members Quick View -->
+<div class="card" style="margin-top:18px">
+  <div class="card-header">
+    <h3>Active Team Members</h3>
+    <a href="/members" class="btn btn-ghost btn-sm">Manage →</a>
+  </div>
+  <div id="members-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px"></div>
+</div>
+
+<!-- Announcement Modal -->
+<div class="modal-bg" id="ann-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📣 Post Announcement</h3>
+      <button class="modal-close" onclick="document.getElementById('ann-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Title</label><input type="text" id="ann-title" placeholder="Announcement title"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Message</label><textarea id="ann-body" rows="3" placeholder="Details..."></textarea></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Priority</label>
+      <select id="ann-priority"><option value="normal">Normal</option><option value="urgent">Urgent</option></select>
+    </div>
+    <div class="form-group" style="margin-bottom:0"><label>Expires On (optional)</label><input type="date" id="ann-expires"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('ann-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-gold" onclick="postAnnouncement()">Post Announcement</button>
+    </div>
+  </div>
+</div>
+
+<script>
+fetch('/api/members').then(r=>r.json()).then(members=>{
+  const grid = document.getElementById('members-grid');
+  const roleColors = {
+    'Head of Protocol':'#C9A84C','Secretary & Financial Officer':'#3b82f6',
+    'Media Officer':'#8b5cf6','Welfare & Hospitality Officer':'#10b981',
+    'Operations & Security Officer':'#ef4444','Soul Winning Assistant':'#f59e0b'
+  };
+  members.forEach(m=>{
+    const color = roleColors[m.role] || '#64748b';
+    const initials = m.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    grid.innerHTML += `<a href="/members/${m.id}" style="text-decoration:none">
+      <div style="background:var(--surface);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);transition:.15s;cursor:pointer" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="width:36px;height:36px;background:${color}22;border:2px solid ${color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${color};flex-shrink:0">${initials}</div>
+        <div style="min-width:0">
+          <div style="font-weight:700;font-size:12px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.office||m.role||''}</div>
+        </div>
+      </div></a>`;
+  });
+});
+
+async function postAnnouncement(){
+  const data = {
+    title: document.getElementById('ann-title').value,
+    body: document.getElementById('ann-body').value,
+    priority: document.getElementById('ann-priority').value,
+    expires_at: document.getElementById('ann-expires').value || null
+  };
+  if(!data.title || !data.body){alert('Please fill in title and message.');return;}
+  await fetch('/api/announcements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  document.getElementById('ann-modal').classList.remove('open');
+  location.reload();
+}
+</script>
+{% endblock %}
