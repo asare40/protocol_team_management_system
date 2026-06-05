@@ -757,4 +757,4 @@ if __name__ == '__main__':
     print("="*60)
     print("  asare / admin123   |  richard / richard123  |  apostle / apostle123")
     print("="*60 + "\n")
-    app.run(debug=False, port=5000)
+app.run(host="0.0.0.0", port=10000)
