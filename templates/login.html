@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign In — Protocol Team</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;background:#0f2244}
+.left{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:48px;position:relative;overflow:hidden}
+.left::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%, rgba(201,168,76,.15) 0%, transparent 60%),radial-gradient(ellipse at 80% 20%, rgba(31,56,100,.8) 0%, transparent 50%)}
+.blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.2}
+.blob1{width:400px;height:400px;background:#C9A84C;top:-100px;left:-100px}
+.blob2{width:300px;height:300px;background:#3b82f6;bottom:0;right:0}
+.left-content{position:relative;z-index:1;text-align:center;max-width:400px}
+.church-icon{width:80px;height:80px;background:rgba(201,168,76,.15);border:2px solid rgba(201,168,76,.4);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 24px}
+.left-content h1{font-size:32px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px}
+.left-content h1 span{color:#C9A84C}
+.left-content p{font-size:14px;color:rgba(255,255,255,.55);line-height:1.6}
+.features{margin-top:36px;display:flex;flex-direction:column;gap:14px;text-align:left}
+.feature{display:flex;align-items:center;gap:12px}
+.feature .feat-icon{width:32px;height:32px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.feature p{font-size:12px;color:rgba(255,255,255,.6);font-weight:500}
+
+.right{width:480px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center;padding:48px;min-height:100vh}
+.login-box{width:100%;max-width:360px}
+.login-box .top{margin-bottom:32px}
+.login-box .top h2{font-size:24px;font-weight:800;color:#0f2244;margin-bottom:6px}
+.login-box .top p{font-size:13px;color:#64748b}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:11px;font-weight:700;color:#0f2244;margin-bottom:6px;letter-spacing:.3px;text-transform:uppercase}
+.form-group input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;color:#1e2d4d;transition:.15s}
+.form-group input:focus{outline:none;border-color:#C9A84C;box-shadow:0 0 0 3px rgba(201,168,76,.12)}
+.btn-login{width:100%;padding:13px;background:#0f2244;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-login:hover{background:#1a3a6b;transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,34,68,.3)}
+.error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;border:1px solid #fecaca;display:flex;align-items:center;gap:8px;font-weight:500}
+.divider{margin:24px 0;display:flex;align-items:center;gap:10px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#e2e8f0}
+.divider span{font-size:11px;color:#94a3b8;white-space:nowrap}
+.creds{background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0}
+.creds p{font-size:11px;font-weight:700;color:#0f2244;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
+.cred-item{display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;color:#64748b;font-family:'DM Mono',monospace}
+.cred-item span:last-child{color:#0f2244;font-weight:600}
+.footer-note{text-align:center;margin-top:28px;font-size:11px;color:#94a3b8}
+
+@media(max-width:800px){
+  .left{display:none}
+  .right{width:100%;padding:32px 24px}
+}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="left">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="left-content">
+    <div class="church-icon">⛪</div>
+    <h1>Team <span>Management</span> System</h1>
+    <p>A comprehensive platform for the Protocol & Media Team at Wellspring of Grace Arena Chapel.</p>
+    <div class="features">
+      <div class="feature"><div class="feat-icon">📋</div><p>Attendance tracking with smart alerts</p></div>
+      <div class="feature"><div class="feat-icon">🛡️</div><p>Duty roster with auto-scheduling</p></div>
+      <div class="feature"><div class="feat-icon">💰</div><p>Welfare fund with full audit trail</p></div>
+      <div class="feature"><div class="feat-icon">👥</div><p>Member profiles with complete history</p></div>
+      <div class="feature"><div class="feat-icon">📈</div><p>Monthly reports & insights</p></div>
+    </div>
+  </div>
+</div>
+<div class="right">
+  <div class="login-box">
+    <div class="top">
+      <h2>Welcome back 👋</h2>
+      <p>Sign in to access the team management system</p>
+    </div>
+    {% if error %}<div class="error">⚠️ {{ error }}</div>{% endif %}
+    <form method="POST">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Enter your username" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Enter your password" required>
+      </div>
+      <button type="submit" class="btn-login">Sign In →</button>
+    </form>
+    <div class="divider"><span>Team Login Credentials</span></div>
+    <div class="creds">
+      <p>Quick Reference</p>
+      <div class="cred-item"><span>Head of Protocol</span><span>asare / admin123</span></div>
+      <div class="cred-item"><span>Secretary</span><span>richard / richard123</span></div>
+      <div class="cred-item"><span>Apostle Nick</span><span>apostle / apostle123</span></div>
+    </div>
+    <p class="footer-note">Prophet Alex De King Ministries · Adenta, Accra · v2.0</p>
+  </div>
+</div>
+</body>
+</html>

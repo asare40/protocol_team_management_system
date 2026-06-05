@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Attendance Register{% endblock %}
+{% block content %}
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('mark',this)">📋 Mark Attendance</div>
+  <div class="tab" onclick="showTab('view',this)">📂 View Records</div>
+  <div class="tab" onclick="showTab('summary',this)">📊 Summary</div>
+  <div class="tab" onclick="showTab('alerts',this)">⚠️ Alerts</div>
+</div>
+
+<!-- ── MARK ── -->
+<div id="tab-mark">
+  <div class="card">
+    <div class="card-header">
+      <h3>Mark Attendance</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="form-group" style="margin:0;flex-direction:row;align-items:center;gap:8px">
+          <label style="white-space:nowrap">Date</label>
+          <input type="date" id="att-date" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+        </div>
+        <select id="att-service" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+          <option>Sunday Service</option><option>Monday Service</option>
+          <option>Wednesday Service</option><option>Team Meeting</option>
+          <option>Soul Winning Campaign</option><option>Special Service</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div id="alert-mark"></div>
+
+    <!-- Quick actions -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="markAll('P')">✅ Mark All Present</button>
+      <button class="btn btn-ghost btn-sm" onclick="markAll('A')">❌ Mark All Absent</button>
+      <span id="marked-count" style="font-size:12px;color:var(--text-muted);align-self:center;margin-left:4px"></span>
+    </div>
+
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>Member</th><th>Role</th><th style="text-align:center">Present</th><th style="text-align:center">Absent</th><th style="text-align:center">Late</th><th style="text-align:center">Excused</th><th>Notes</th></tr></thead>
+      <tbody id="mark-body"></tbody>
+    </table>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary" onclick="submitAttendance()">💾 Save Attendance</button>
+      <span style="font-size:12px;color:var(--text-muted)">Records are updated if attendance was already marked for this date & service.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── VIEW ── -->
+<div id="tab-view" style="display:none">
+  <div class="card">
+    <div class="card-header"><h3>Attendance Records</h3></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end">
+      <div class="form-group" style="margin:0"><label>Date</label><input type="date" id="filter-date" style="padding:7px 10px;font-size:13px;border:1.5px solid var(--border);border-radius:8px"></div>
+      <div class="form-group" style="margin:0"><label>Service</label>
+        <select id="filter-service" style="padding:7px 10px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit">
+          <option value="">All Services</option>
+          <option>Sunday Service</option><option>Monday Service</option>
+          <option>Wednesday Service</option><option>Team Meeting</option>
+          <option>Soul Winning Campaign</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0"><label>Status</label>
+        <select id="filter-status" style="padding:7px 10px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit">
+          <option value="">All</option><option value="P">Present</option>
+          <option value="A">Absent</option><option value="L">Late</option><option value="E">Excused</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="loadRecords()" style="align-self:flex-end">🔍 Search</button>
+    </div>
+    <div id="records-stats" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"></div>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Date</th><th>Service</th><th>Member</th><th>Status</th><th>Notes</th><th>Recorded By</th></tr></thead>
+      <tbody id="records-body"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── SUMMARY ── -->
+<div id="tab-summary" style="display:none">
+  <div class="card">
+    <div class="card-header"><h3>Attendance Summary per Member</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;font-weight:600;color:var(--navy)">Sort:</label>
+        <select id="sort-summary" onchange="renderSummary()" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit">
+          <option value="name">Name</option><option value="rate">Attendance Rate</option><option value="absent">Most Absent</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Member</th><th>Code</th><th style="color:#22c55e">Present</th><th style="color:#ef4444">Absent</th><th style="color:#f59e0b">Late</th><th style="color:#3b82f6">Excused</th><th>Total</th><th>Rate</th><th>Standing</th></tr></thead>
+      <tbody id="summary-body"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── ALERTS ── -->
+<div id="tab-alerts" style="display:none">
+  <div class="card">
+    <div class="card-header"><h3>Attendance Alerts</h3></div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Members flagged for 3 or more consecutive absences. These individuals may need a welfare check or pastoral follow-up.</p>
+    <div id="alerts-body"></div>
+  </div>
+</div>
+
+<script>
+let members = [];
+document.getElementById('att-date').value = new Date().toISOString().split('T')[0];
+let summaryData = [];
+
+fetch('/api/members').then(r=>r.json()).then(data=>{
+  members = data;
+  const tbody = document.getElementById('mark-body');
+  data.forEach((m,i)=>{
+    tbody.innerHTML += `<tr id="row-${m.id}">
+      <td style="font-size:12px;color:var(--text-muted);font-weight:700">${i+1}</td>
+      <td>
+        <a href="/members/${m.id}" style="text-decoration:none;font-weight:700;color:var(--navy)">${m.name}</a>
+      </td>
+      <td style="font-size:11px;color:var(--text-muted)">${m.office||m.role||''}</td>
+      ${['P','A','L','E'].map(s=>`
+        <td style="text-align:center">
+          <label style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;cursor:pointer;transition:.15s"
+            id="lbl-${m.id}-${s}"
+            onmouseover="this.style.background='#f0f0f0'"
+            onmouseout="updateRadioLabel(${m.id})">
+            <input type="radio" name="status_${m.id}" value="${s}" ${s==='P'?'checked':''} onchange="updateRadioLabel(${m.id});updateCount()" style="display:none">
+            <span id="ico-${m.id}-${s}" style="font-size:16px">${s==='P'?'✅':s==='A'?'❌':s==='L'?'⏰':'📝'}</span>
+          </label>
+        </td>`).join('')}
+      <td><input type="text" placeholder="Optional note" id="note_${m.id}" style="width:100%;padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit"></td>
+    </tr>`;
+  });
+  data.forEach(m=>updateRadioLabel(m.id));
+  updateCount();
+});
+
+function updateRadioLabel(mid){
+  const checked = document.querySelector(`input[name="status_${mid}"]:checked`);
+  if(!checked) return;
+  const val = checked.value;
+  ['P','A','L','E'].forEach(s=>{
+    const lbl = document.getElementById(`lbl-${mid}-${s}`);
+    if(!lbl) return;
+    if(s === val){
+      const bg = {P:'#dcfce7',A:'#fee2e2',L:'#fef9c3',E:'#dbeafe'}[s];
+      lbl.style.background = bg;
+      lbl.style.boxShadow = '0 0 0 2px currentColor';
+    } else {
+      lbl.style.background = '';
+      lbl.style.boxShadow = '';
+    }
+  });
+}
+
+function markAll(status){
+  members.forEach(m=>{
+    const radio = document.querySelector(`input[name="status_${m.id}"][value="${status}"]`);
+    if(radio){ radio.checked=true; updateRadioLabel(m.id); }
+  });
+  updateCount();
+}
+
+function updateCount(){
+  const present = members.filter(m=>{
+    const r = document.querySelector(`input[name="status_${m.id}"]:checked`);
+    return r && r.value === 'P';
+  }).length;
+  document.getElementById('marked-count').textContent = `${present} / ${members.length} present`;
+}
+
+async function submitAttendance(){
+  const date = document.getElementById('att-date').value;
+  const service = document.getElementById('att-service').value;
+  if(!date){ alert('Please select a date.'); return; }
+  const entries = members.map(m=>({
+    member_id: m.id,
+    status: document.querySelector(`input[name="status_${m.id}"]:checked`).value,
+    notes: document.getElementById(`note_${m.id}`).value
+  }));
+  const res = await fetch('/api/attendance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,service,entries})});
+  const d = await res.json();
+  const el = document.getElementById('alert-mark');
+  el.innerHTML = `<div class="alert alert-success">✅ Attendance saved for <strong>${service}</strong> on <strong>${date}</strong> — ${entries.filter(e=>e.status==='P').length} present, ${entries.filter(e=>e.status==='A').length} absent.</div>`;
+  setTimeout(()=>el.innerHTML='',5000);
+}
+
+async function loadRecords(){
+  const date = document.getElementById('filter-date').value;
+  const service = document.getElementById('filter-service').value;
+  const status = document.getElementById('filter-status').value;
+  let url = '/api/attendance?';
+  if(date) url += `date=${date}&`;
+  if(service) url += `service=${encodeURIComponent(service)}&`;
+  const res = await fetch(url);
+  let rows = await res.json();
+  if(status) rows = rows.filter(r=>r.status===status);
+
+  // Stats bar
+  const counts = {P:0,A:0,L:0,E:0};
+  rows.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
+  document.getElementById('records-stats').innerHTML = Object.entries({P:'Present',A:'Absent',L:'Late',E:'Excused'}).map(([k,v])=>
+    `<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--navy)">${v}: <strong>${counts[k]||0}</strong></span>`
+  ).join('');
+
+  const tbody = document.getElementById('records-body');
+  tbody.innerHTML = rows.length ? rows.map(r=>`<tr>
+    <td style="font-size:12px;color:var(--text-muted)">${r.date}</td>
+    <td style="font-size:12px">${r.service}</td>
+    <td><a href="/members/${r.member_id}" style="text-decoration:none;font-weight:700;color:var(--navy)">${r.name}</a></td>
+    <td><span class="badge badge-${r.status}">${{P:'Present',A:'Absent',L:'Late',E:'Excused'}[r.status]||r.status}</span></td>
+    <td style="font-size:12px;color:var(--text-muted)">${r.notes||''}</td>
+    <td style="font-size:11px;color:var(--text-muted)">${r.recorded_by||''}</td>
+  </tr>`).join('') : '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>No records found</p></div></td></tr>';
+}
+
+async function loadSummary(){
+  const res = await fetch('/api/attendance/summary');
+  summaryData = await res.json();
+  renderSummary();
+}
+
+function renderSummary(){
+  const sort = document.getElementById('sort-summary').value;
+  let data = [...summaryData];
+  if(sort==='rate') data.sort((a,b)=>((b.present/Math.max(b.total,1))-(a.present/Math.max(a.total,1))));
+  else if(sort==='absent') data.sort((a,b)=>b.absent-a.absent);
+  else data.sort((a,b)=>a.name.localeCompare(b.name));
+
+  document.getElementById('summary-body').innerHTML = data.map(r=>{
+    const rate = r.total > 0 ? Math.round((r.present/r.total)*100) : 0;
+    const standing = r.total===0 ? ['—','badge-neutral'] : rate>=80 ? ['🟢 Good Standing','badge-good'] : rate>=60 ? ['🟡 Fair','badge-warn'] : ['🔴 At Risk','badge-risk'];
+    const barColor = rate>=80?'#22c55e':rate>=60?'#f59e0b':'#ef4444';
+    return `<tr>
+      <td><a href="/members/${r.id}" style="text-decoration:none;font-weight:700;color:var(--navy)">${r.name}</a></td>
+      <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-muted)">${r.member_code||''}</td>
+      <td style="font-weight:700;color:#166534">${r.present}</td>
+      <td style="font-weight:700;color:#991b1b">${r.absent}</td>
+      <td style="font-weight:700;color:#713f12">${r.late}</td>
+      <td style="font-weight:700;color:#1e40af">${r.excused}</td>
+      <td>${r.total}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="progress" style="width:60px;flex-shrink:0"><div class="progress-bar" style="width:${rate}%;background:${barColor}"></div></div>
+          <span style="font-weight:700;font-size:12px;color:${barColor}">${rate}%</span>
+        </div>
+      </td>
+      <td><span class="badge ${standing[1]}" style="font-size:10px">${standing[0]}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadAlerts(){
+  const res = await fetch('/api/attendance/alerts');
+  const data = await res.json();
+  const el = document.getElementById('alerts-body');
+  if(!data.length){
+    el.innerHTML = '<div class="alert alert-success">✅ No attendance alerts. All members are in good standing.</div>';
+    return;
+  }
+  el.innerHTML = data.map(a=>`
+    <div style="display:flex;align-items:center;gap:14px;background:#fff8e1;border:1px solid #fde68a;border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <span style="font-size:24px;flex-shrink:0">⚠️</span>
+      <div style="flex:1">
+        <p style="font-weight:700;font-size:13px;color:#713f12">${a.name}</p>
+        <p style="font-size:12px;color:#92400e;margin-top:2px">${a.consecutive_absences} consecutive absences — recommend pastoral follow-up</p>
+      </div>
+      <a href="/members/${a.member_id}" class="btn btn-gold btn-sm">View Profile →</a>
+    </div>`).join('');
+}
+
+function showTab(name, el){
+  ['mark','view','summary','alerts'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(name==='summary') loadSummary();
+  if(name==='alerts') loadAlerts();
+  if(name==='view') loadRecords();
+}
+</script>
+{% endblock %}

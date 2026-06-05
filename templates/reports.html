@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block content %}
+
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+  <div class="form-group" style="margin:0">
+    <label style="font-size:11px;font-weight:700;color:var(--navy);display:block;margin-bottom:4px">Select Month</label>
+    <input type="month" id="report-month" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+  </div>
+  <button class="btn btn-primary" onclick="loadReport()" style="align-self:flex-end">📊 Generate Report</button>
+  <button class="btn btn-gold" onclick="printReport()" style="align-self:flex-end">🖨️ Print Report</button>
+</div>
+
+<div id="report-area">
+  <div class="empty card"><div class="empty-icon">📈</div><p>Select a month and click Generate Report</p></div>
+</div>
+
+<script>
+// Default to current month
+const now = new Date();
+document.getElementById('report-month').value = now.toISOString().slice(0,7);
+
+async function loadReport(){
+  const month = document.getElementById('report-month').value;
+  if(!month){alert('Please select a month.');return;}
+  const btn = document.querySelector('button.btn-primary');
+  btn.textContent='⏳ Loading…'; btn.disabled=true;
+  const res = await fetch(`/api/reports/monthly?month=${month}`);
+  const data = await res.json();
+  btn.textContent='📊 Generate Report'; btn.disabled=false;
+  renderReport(data, month);
+}
+
+function renderReport(data, month){
+  const monthLabel = new Date(month+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const att = data.attendance || [];
+  const totalPresent = att.reduce((s,r)=>s+(r.present||0),0);
+  const totalAbsent  = att.reduce((s,r)=>s+(r.absent||0),0);
+  const totalSessions = att.reduce((s,r)=>s+(r.total||0),0);
+  const overallRate = totalSessions > 0 ? Math.round(totalPresent/totalSessions*100) : 0;
+
+  document.getElementById('report-area').innerHTML = `
+  <div id="printable-report">
+    <!-- Report Header -->
+    <div class="card" style="background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px">
+        <div>
+          <p style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Monthly Report</p>
+          <h2 style="font-size:24px;font-weight:800;color:#fff;margin-bottom:4px">${monthLabel}</h2>
+          <p style="font-size:13px;color:rgba(255,255,255,.6)">Protocol & Media Team — Wellspring of Grace Arena Chapel</p>
+        </div>
+        <div style="text-align:right">
+          <p style="font-size:11px;color:rgba(255,255,255,.5)">Generated</p>
+          <p style="font-size:13px;font-weight:600;color:#fff">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+      <div class="card" style="text-align:center;margin-bottom:0;border-bottom:3px solid #22c55e">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Attendance Rate</div>
+        <div style="font-size:28px;font-weight:800;color:${overallRate>=80?'#22c55e':overallRate>=60?'#f59e0b':'#ef4444'}">${overallRate}%</div>
+      </div>
+      <div class="card" style="text-align:center;margin-bottom:0;border-bottom:3px solid var(--gold)">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Contributions</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy)">GH₵${data.welfare.contributions.toFixed(2)}</div>
+      </div>
+      <div class="card" style="text-align:center;margin-bottom:0;border-bottom:3px solid #ef4444">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Disbursements</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy)">GH₵${data.welfare.disbursements.toFixed(2)}</div>
+      </div>
+      <div class="card" style="text-align:center;margin-bottom:0;border-bottom:3px solid var(--navy)">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Disc. Cases</div>
+        <div style="font-size:28px;font-weight:800;color:var(--navy)">${data.disciplinary.length}</div>
+      </div>
+    </div>
+
+    <!-- Attendance Report -->
+    <div class="card">
+      <div class="card-header"><h3>Attendance Report — ${monthLabel}</h3></div>
+      ${att.length ? `
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Member</th><th style="color:#22c55e">Present</th><th style="color:#ef4444">Absent</th><th style="color:#f59e0b">Late</th><th style="color:#3b82f6">Excused</th><th>Total</th><th>Rate</th><th>Standing</th></tr></thead>
+        <tbody>${att.map(r=>{
+          const total = r.total||0;
+          const present = r.present||0;
+          const rate = total>0?Math.round(present/total*100):0;
+          const color = rate>=80?'#22c55e':rate>=60?'#f59e0b':'#ef4444';
+          const badge = total===0?'—':rate>=80?'🟢 Good':rate>=60?'🟡 Fair':'🔴 At Risk';
+          return `<tr>
+            <td><strong>${r.name}</strong></td>
+            <td style="font-weight:700;color:#166534">${present}</td>
+            <td style="font-weight:700;color:#991b1b">${r.absent||0}</td>
+            <td style="font-weight:700;color:#713f12">${r.late||0}</td>
+            <td style="font-weight:700;color:#1e40af">${r.excused||0}</td>
+            <td>${total}</td>
+            <td><div style="display:flex;align-items:center;gap:6px">
+              <div class="progress" style="width:50px"><div class="progress-bar" style="width:${rate}%;background:${color}"></div></div>
+              <span style="font-weight:700;font-size:12px;color:${color}">${rate}%</span>
+            </div></td>
+            <td style="font-size:11px;font-weight:600">${badge}</td>
+          </tr>`;
+        }).join('')}</tbody>
+        <tfoot><tr style="background:var(--surface)">
+          <td><strong>TOTAL</strong></td>
+          <td style="font-weight:800;color:#166534">${totalPresent}</td>
+          <td style="font-weight:800;color:#991b1b">${totalAbsent}</td>
+          <td colspan="3"></td>
+          <td colspan="2"><strong>Overall: ${overallRate}%</strong></td>
+        </tr></tfoot>
+      </table>
+      </div>` : '<div class="empty"><div class="empty-icon">📋</div><p>No attendance data for this month</p></div>'}
+    </div>
+
+    <!-- Welfare Report -->
+    <div class="card">
+      <div class="card-header"><h3>Welfare Fund — ${monthLabel}</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div style="background:#dcfce7;border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:#166534;text-transform:uppercase;margin-bottom:4px">Contributions</div>
+          <div style="font-size:22px;font-weight:800;color:#166534">GH₵${data.welfare.contributions.toFixed(2)}</div>
+        </div>
+        <div style="background:#fee2e2;border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:#991b1b;text-transform:uppercase;margin-bottom:4px">Disbursements</div>
+          <div style="font-size:22px;font-weight:800;color:#991b1b">GH₵${data.welfare.disbursements.toFixed(2)}</div>
+        </div>
+        <div style="background:${data.welfare.net>=0?'#dcfce7':'#fee2e2'};border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:${data.welfare.net>=0?'#166534':'#991b1b'};text-transform:uppercase;margin-bottom:4px">Net This Month</div>
+          <div style="font-size:22px;font-weight:800;color:${data.welfare.net>=0?'#166534':'#991b1b'}">GH₵${data.welfare.net.toFixed(2)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Duty Report -->
+    ${data.duty && data.duty.length ? `
+    <div class="card">
+      <div class="card-header"><h3>Duty Roster — ${monthLabel}</h3></div>
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Week</th><th>Date</th><th>Duty 1</th><th>Duty 2</th><th>Standby</th><th>Remarks</th></tr></thead>
+        <tbody>${data.duty.map(d=>`<tr>
+          <td>W${d.week_number}</td><td style="font-size:12px;color:var(--text-muted)">${d.date}</td>
+          <td style="font-weight:600">${d.duty1}</td><td style="font-weight:600">${d.duty2}</td>
+          <td style="color:var(--gold);font-weight:600">${d.standby}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${d.remarks||''}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+      </div>
+    </div>` : ''}
+
+    <!-- Disciplinary Report -->
+    ${data.disciplinary && data.disciplinary.length ? `
+    <div class="card">
+      <div class="card-header"><h3>Disciplinary Cases — ${monthLabel}</h3></div>
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Date</th><th>Member</th><th>Action Taken</th></tr></thead>
+        <tbody>${data.disciplinary.map(d=>`<tr>
+          <td style="font-size:12px">${d.date}</td>
+          <td style="font-weight:700">${d.name}</td>
+          <td><span class="badge badge-risk" style="font-size:10px">${d.action_taken}</span></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      </div>
+    </div>` : `
+    <div class="card">
+      <div class="card-header"><h3>Disciplinary Cases — ${monthLabel}</h3></div>
+      <div class="alert alert-success">✅ No disciplinary cases recorded this month.</div>
+    </div>`}
+
+    <!-- Footer -->
+    <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;margin-top:8px">
+      Protocol & Media Team · Wellspring of Grace Arena Chapel · Prophet Alex De King Ministries · Adenta, Accra
+    </div>
+  </div>`;
+}
+
+function printReport(){
+  const content = document.getElementById('printable-report');
+  if(!content){ alert('Please generate a report first.'); return; }
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Monthly Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Plus+Jakarta+Sans',Arial,sans-serif;color:#1e2d4d;font-size:12px;padding:20px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th{background:#0f2244;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700}
+    td{padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:11px}
+    tr:nth-child(even) td{background:#f8f9fb}
+    h2{font-size:18px;font-weight:800;margin-bottom:4px}
+    h3{font-size:13px;font-weight:700;margin:16px 0 8px;border-bottom:2px solid #C9A84C;padding-bottom:4px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700}
+    .card{margin-bottom:16px;padding:14px;border:1px solid #e2e8f0;border-radius:8px}
+    .progress{height:5px;background:#e2e8f0;border-radius:3px}
+    .progress-bar{height:100%;border-radius:3px}
+    @media print{@page{margin:15mm}body{padding:0}}
+  </style></head><body>${content.innerHTML}</body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),500);
+}
+</script>
+{% endblock %}

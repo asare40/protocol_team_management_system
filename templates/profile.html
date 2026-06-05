@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }}{% endblock %}
+{% block page_title %}Member Profile{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:16px">
+  <a href="/members" class="btn btn-ghost btn-sm">← Back to Members</a>
+</div>
+
+{% set rate = ((att_summary.present or 0) / (att_summary.total or 1) * 100) | round | int %}
+{% set color_map = {'Head of Protocol': '#C9A84C', 'Secretary & Financial Officer': '#3b82f6', 'Media Officer': '#8b5cf6', 'Welfare & Hospitality Officer': '#10b981', 'Operations & Security Officer': '#ef4444', 'Soul Winning Coordinator (Assistant)': '#f59e0b', 'Soul Winning Assistant': '#f59e0b', 'General Member': '#64748b'} %}
+{% set mc = color_map.get(member.role, '#64748b') %}
+{% set initials = member.name.split(' ') | map(attribute=0) | join('') | upper %}
+
+<!-- Profile Header -->
+<div class="card" style="margin-bottom:18px">
+  <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+    <div style="width:72px;height:72px;background:{{ mc }}22;border:3px solid {{ mc }};border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:{{ mc }};flex-shrink:0">
+      {{ initials[:2] }}
+    </div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="font-size:20px;font-weight:800;color:var(--navy)">{{ member.name }}</h2>
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:{{ mc }}22;color:{{ mc }}">{{ member.member_code }}</span>
+        {% if not member.active %}<span class="badge badge-risk">Inactive</span>{% endif %}
+      </div>
+      <p style="font-size:13px;color:var(--text-muted);margin-top:3px">{{ member.office or member.role }}</p>
+      {% if member.skills %}
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">
+        {% for skill in member.skills.split(',') %}{% if skill.strip() %}
+        <span style="background:{{ mc }}15;color:{{ mc }};border:1px solid {{ mc }}30;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px">{{ skill.strip() }}</span>
+        {% endif %}{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      {% if session.role in ('admin','secretary') %}
+      <a href="/members" class="btn btn-gold btn-sm" onclick="/* edit via members page */">✏️ Edit</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0;border-bottom:3px solid #22c55e">
+    <div style="font-size:26px;font-weight:800;color:#22c55e">{{ att_summary.present or 0 }}</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Times Present</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0;border-bottom:3px solid var(--gold)">
+    <div style="font-size:26px;font-weight:800;color:var(--gold)">{{ rate }}%</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Attendance Rate</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0;border-bottom:3px solid #22c55e">
+    <div style="font-size:26px;font-weight:800;color:#22c55e">GH₵{{ welfare_total | round(2) }}</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Total Contributed</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0;border-bottom:3px solid {% if disc_count > 0 %}#ef4444{% else %}#22c55e{% endif %}">
+    <div style="font-size:26px;font-weight:800;color:{% if disc_count > 0 %}#ef4444{% else %}#22c55e{% endif %}">{{ disc_count }}</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px">Active Cases</div>
+  </div>
+</div>
+
+<!-- Details Grid -->
+<div style="display:grid;grid-template-columns:1fr 1.6fr;gap:18px">
+
+  <!-- Left: Contact Info -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header"><h3>Contact Details</h3></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        {% macro detail(icon, label, value) %}
+        {% if value %}
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <span style="font-size:15px;flex-shrink:0;margin-top:1px">{{ icon }}</span>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px">{{ label }}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-top:1px">{{ value }}</div>
+          </div>
+        </div>
+        {% endif %}
+        {% endmacro %}
+        {{ detail('📞', 'Phone', member.phone) }}
+        {{ detail('📧', 'Email', member.email) }}
+        {{ detail('📅', 'Date Joined', member.date_joined) }}
+        {{ detail('🙏', 'Spiritual Status', member.spiritual_status) }}
+        {{ detail('🆘', 'Emergency Contact', member.emergency_contact) }}
+        {{ detail('📱', 'Emergency Phone', member.emergency_phone) }}
+        {% if not member.phone and not member.email %}
+        <p style="font-size:12px;color:var(--text-muted)">No contact details recorded.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Attendance Summary -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header"><h3>Attendance Summary</h3></div>
+      {% set total = att_summary.total or 0 %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        {% for label, val, color in [('Present', att_summary.present or 0, '#22c55e'), ('Absent', att_summary.absent or 0, '#ef4444'), ('Late', att_summary.late or 0, '#f59e0b'), ('Excused', att_summary.excused or 0, '#3b82f6')] %}
+        <div style="background:var(--surface);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:{{ color }}">{{ val }}</div>
+          <div style="font-size:10px;color:var(--text-muted);font-weight:600">{{ label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="progress">
+        <div class="progress-bar" style="width:{{ rate }}%;background:{% if rate >= 80 %}#22c55e{% elif rate >= 60 %}#f59e0b{% else %}#ef4444{% endif %}"></div>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:6px">{{ rate }}% attendance rate ({{ att_summary.total or 0 }} sessions recorded)</p>
+    </div>
+
+    <!-- Welfare Summary -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header"><h3>Welfare Summary</h3></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:#dcfce7;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:#166534">GH₵{{ welfare_total | round(2) }}</div>
+          <div style="font-size:10px;font-weight:700;color:#166534;margin-top:2px">Contributed</div>
+        </div>
+        <div style="background:#fee2e2;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:#991b1b">GH₵{{ welfare_received | round(2) }}</div>
+          <div style="font-size:10px;font-weight:700;color:#991b1b;margin-top:2px">Received</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: History -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <!-- Recent Attendance -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header"><h3>Recent Attendance</h3></div>
+      {% if recent_att %}
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Date</th><th>Service</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody>
+          {% for r in recent_att %}
+          <tr>
+            <td style="font-size:12px;color:var(--text-muted)">{{ r.date }}</td>
+            <td style="font-size:12px">{{ r.service }}</td>
+            <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+            <td style="font-size:12px;color:var(--text-muted)">{{ r.notes or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <div class="empty"><div class="empty-icon">📋</div><p>No attendance records</p></div>
+      {% endif %}
+    </div>
+
+    <!-- Duty History -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header"><h3>Duty History</h3></div>
+      {% if duty_records %}
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Date</th><th>Week</th><th>Role</th></tr></thead>
+        <tbody>
+          {% for d in duty_records %}
+          <tr>
+            <td style="font-size:12px;color:var(--text-muted)">{{ d.date }}</td>
+            <td>Week {{ d.week_number }}</td>
+            <td><span class="badge" style="background:var(--gold-dim);color:var(--gold)">
+              {% if d.duty1 == member.name %}Duty 1{% elif d.duty2 == member.name %}Duty 2{% else %}Standby{% endif %}
+            </span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <div class="empty"><div class="empty-icon">🛡️</div><p>No duty records</p></div>
+      {% endif %}
+    </div>
+
+    <!-- Disciplinary Records -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header"><h3>Disciplinary Records</h3></div>
+      {% if disc_records %}
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Date</th><th>Offence</th><th>Action</th><th>Ack.</th></tr></thead>
+        <tbody>
+          {% for d in disc_records %}
+          <tr>
+            <td style="font-size:12px;color:var(--text-muted)">{{ d.date }}</td>
+            <td style="font-size:12px;max-width:180px">{{ d.offence[:60] }}{% if d.offence|length > 60 %}…{% endif %}</td>
+            <td><span class="badge badge-risk" style="font-size:10px">{{ d.action_taken }}</span></td>
+            <td>{% if d.acknowledged %}<span style="color:#22c55e;font-size:14px">✓</span>{% else %}<span style="color:#ef4444;font-size:14px">✗</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <div class="empty"><div class="empty-icon">✅</div><p>No disciplinary records — clean record!</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

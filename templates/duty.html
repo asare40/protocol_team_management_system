@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Duty Roster{% endblock %}
+{% block page_title %}Duty Roster{% endblock %}
+{% block content %}
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('roster',this)">🛡️ Duty Roster</div>
+  <div class="tab" onclick="showTab('add',this)">➕ Add Entry</div>
+  <div class="tab" onclick="showTab('auto',this)">🤖 Auto-Schedule</div>
+</div>
+
+<!-- ── ROSTER ── -->
+<div id="tab-roster">
+  <div class="card">
+    <div class="card-header">
+      <h3>All Duty Entries</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="text" id="search-duty" placeholder="🔍 Search..." onkeyup="filterDuty()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:180px">
+        <select id="filter-duty-month" onchange="filterDuty()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
+          <option value="">All Dates</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Upcoming highlight -->
+    <div id="upcoming-banner"></div>
+
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Week</th><th>Date</th><th>Duty 1</th><th>Duty 2</th><th>Standby</th><th>Remarks</th><th>Created By</th><th>Actions</th></tr></thead>
+      <tbody id="duty-body"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Per-member duty count -->
+  <div class="card">
+    <div class="card-header"><h3>Duty Count per Member</h3></div>
+    <div id="duty-counts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+  </div>
+</div>
+
+<!-- ── ADD / EDIT ── -->
+<div id="tab-add" style="display:none">
+  <div class="card" style="max-width:600px">
+    <div class="card-header">
+      <h3 id="add-title">➕ Add Duty Entry</h3>
+    </div>
+    <div id="alert-duty"></div>
+    <input type="hidden" id="duty-id">
+    <div class="form-grid">
+      <div class="form-group"><label>Week Number</label><input type="number" id="duty-week" min="1" max="52" placeholder="e.g. 23"></div>
+      <div class="form-group"><label>Date (Sunday)</label><input type="date" id="duty-date"></div>
+      <div class="form-group"><label>Duty Officer 1 *</label><select id="duty-d1"><option value="">-- Select --</option></select></div>
+      <div class="form-group"><label>Duty Officer 2 *</label><select id="duty-d2"><option value="">-- Select --</option></select></div>
+      <div class="form-group"><label>Standby</label><select id="duty-sb"><option value="">-- Select --</option></select></div>
+      <div class="form-group"><label>Remarks</label><input type="text" id="duty-remarks" placeholder="Optional"></div>
+    </div>
+    <div id="conflict-warn" style="display:none" class="alert alert-warn" style="margin-top:10px"></div>
+    <div style="margin-top:16px;display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="saveDuty()">💾 Save Entry</button>
+      <button class="btn btn-ghost" onclick="clearDutyForm()">✖ Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── AUTO-SCHEDULE ── -->
+<div id="tab-auto" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:18px;align-items:flex-start">
+    <div class="card">
+      <div class="card-header"><h3>🤖 Auto-Schedule Roster</h3></div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5">
+        The system will automatically create a fair rotating duty roster based on past assignments and current team members.
+      </p>
+      <div class="form-group" style="margin-bottom:12px"><label>Starting Date</label><input type="date" id="auto-start"></div>
+      <div class="form-group" style="margin-bottom:16px"><label>Number of Weeks to Schedule</label>
+        <select id="auto-weeks" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+          <option value="4">4 Weeks</option><option value="8">8 Weeks</option>
+          <option value="12">12 Weeks</option><option value="16">16 Weeks</option>
+        </select>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:16px">
+        ℹ️ Members who have been on duty least recently will be scheduled first to ensure fairness.
+      </div>
+      <button class="btn btn-gold" onclick="autoSchedule()">🤖 Generate Schedule</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>Preview</h3></div>
+      <div id="auto-preview"><div class="empty"><div class="empty-icon">🤖</div><p>Generated schedule will appear here</p></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let members = [];
+let allDuty = [];
+
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('duty-date').value = today;
+document.getElementById('auto-start').value = today;
+
+// Set week number
+const now = new Date();
+document.getElementById('duty-week').value = getWeekNumber(now);
+
+function getWeekNumber(d){
+  const date = new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  date.setUTCDate(date.getUTCDate()+4-(date.getUTCDay()||7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  return Math.ceil((((date-yearStart)/86400000)+1)/7);
+}
+
+fetch('/api/members').then(r=>r.json()).then(data=>{
+  members = data;
+  ['duty-d1','duty-d2','duty-sb'].forEach(id=>{
+    const sel = document.getElementById(id);
+    data.forEach(m=>sel.innerHTML+=`<option value="${m.name}">${m.name}</option>`);
+  });
+  loadDuty();
+});
+
+async function loadDuty(){
+  const res = await fetch('/api/duty');
+  allDuty = await res.json();
+
+  // Populate month filter
+  const months = [...new Set(allDuty.map(d=>d.date.slice(0,7)))].sort().reverse();
+  const sel = document.getElementById('filter-duty-month');
+  months.forEach(m=>sel.innerHTML+=`<option value="${m}">${m}</option>`);
+
+  renderDuty(allDuty);
+  renderDutyCounts(allDuty);
+  renderUpcoming(allDuty);
+}
+
+function renderUpcoming(data){
+  const upcoming = data.filter(d=>d.date >= today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,1);
+  const el = document.getElementById('upcoming-banner');
+  if(upcoming.length){
+    const d = upcoming[0];
+    el.innerHTML = `<div style="background:linear-gradient(135deg,#0f2244,#1a3a6b);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div><div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:1px;text-transform:uppercase">Next Duty — Week ${d.week_number}</div>
+      <div style="color:#fff;font-weight:700;font-size:15px;margin-top:4px">${d.date}</div></div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div><div style="font-size:10px;color:rgba(255,255,255,.5);font-weight:700">DUTY 1</div><div style="color:var(--gold);font-weight:700;font-size:14px">${d.duty1}</div></div>
+        <div><div style="font-size:10px;color:rgba(255,255,255,.5);font-weight:700">DUTY 2</div><div style="color:var(--gold);font-weight:700;font-size:14px">${d.duty2}</div></div>
+        <div><div style="font-size:10px;color:rgba(255,255,255,.5);font-weight:700">STANDBY</div><div style="color:rgba(255,255,255,.7);font-weight:600;font-size:14px">${d.standby}</div></div>
+      </div>
+    </div>`;
+  }
+}
+
+function renderDuty(data){
+  const tbody = document.getElementById('duty-body');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-icon">🛡️</div><p>No duty entries yet</p></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(d=>{
+    const isPast = d.date < today;
+    const isNext = !isPast && data.filter(x=>x.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0]?.id === d.id;
+    return `<tr style="${isPast?'opacity:.65':''}${isNext?'background:#fffbeb':''}" id="drow-${d.id}">
+      <td><strong>W${d.week_number}</strong></td>
+      <td style="font-size:12px;font-weight:600;color:${isNext?'var(--gold)':'var(--text-muted)'}">${d.date} ${isNext?'<span style="font-size:9px;background:#C9A84C;color:#fff;padding:1px 5px;border-radius:3px;font-weight:700">NEXT</span>':''}</td>
+      <td style="font-weight:600;color:var(--navy)">${d.duty1}</td>
+      <td style="font-weight:600;color:var(--navy)">${d.duty2}</td>
+      <td style="color:var(--gold);font-weight:600">${d.standby||'—'}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${d.remarks||''}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${d.created_by||''}</td>
+      <td>
+        <button class="btn btn-gold btn-xs" onclick='editDuty(${JSON.stringify(d).replace(/"/g,"&quot;")})' style="margin-right:4px">✏️</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteDuty(${d.id})">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDutyCounts(data){
+  const counts = {};
+  members.forEach(m=>counts[m.name]={name:m.name,total:0,d1:0,d2:0,sb:0});
+  data.forEach(d=>{
+    if(counts[d.duty1]){counts[d.duty1].total++;counts[d.duty1].d1++;}
+    if(counts[d.duty2]){counts[d.duty2].total++;counts[d.duty2].d2++;}
+    if(counts[d.standby]){counts[d.standby].total++;counts[d.standby].sb++;}
+  });
+  const el = document.getElementById('duty-counts');
+  const max = Math.max(...Object.values(counts).map(c=>c.total),1);
+  el.innerHTML = Object.values(counts).sort((a,b)=>b.total-a.total).map(c=>`
+    <div style="background:var(--surface);border-radius:8px;padding:12px;border:1px solid var(--border)">
+      <div style="font-weight:700;font-size:12px;color:var(--navy);margin-bottom:6px">${c.name}</div>
+      <div class="progress" style="margin-bottom:6px"><div class="progress-bar" style="width:${(c.total/max*100)}%;background:var(--navy)"></div></div>
+      <div style="font-size:11px;color:var(--text-muted)">
+        <span style="font-weight:700;color:var(--navy)">${c.total}</span> total ·
+        D1: ${c.d1} · D2: ${c.d2} · SB: ${c.sb}
+      </div>
+    </div>`).join('');
+}
+
+function filterDuty(){
+  const q = document.getElementById('search-duty').value.toLowerCase();
+  const month = document.getElementById('filter-duty-month').value;
+  let data = allDuty;
+  if(q) data = data.filter(d=>(d.duty1+d.duty2+d.standby+d.date).toLowerCase().includes(q));
+  if(month) data = data.filter(d=>d.date.startsWith(month));
+  renderDuty(data);
+}
+
+async function saveDuty(){
+  const data = {
+    id: document.getElementById('duty-id').value||null,
+    week_number: document.getElementById('duty-week').value,
+    date: document.getElementById('duty-date').value,
+    duty1: document.getElementById('duty-d1').value,
+    duty2: document.getElementById('duty-d2').value,
+    standby: document.getElementById('duty-sb').value,
+    remarks: document.getElementById('duty-remarks').value,
+  };
+  if(!data.date||!data.duty1||!data.duty2){ alert('Please fill in date and both duty officers.'); return; }
+  if(data.duty1===data.duty2){ alert('Duty 1 and Duty 2 cannot be the same person.'); return; }
+
+  // Conflict check: same person two consecutive weeks
+  const sorted = allDuty.filter(d=>!data.id||d.id!=data.id).sort((a,b)=>a.date.localeCompare(b.date));
+  const warn = document.getElementById('conflict-warn');
+  const conflicts = sorted.filter(d=>{
+    const dayDiff = Math.abs((new Date(d.date)-new Date(data.date))/(1000*60*60*24));
+    return dayDiff <= 7 && (d.duty1===data.duty1||d.duty2===data.duty1||d.duty1===data.duty2||d.duty2===data.duty2);
+  });
+  if(conflicts.length){
+    warn.style.display='flex';
+    warn.textContent = `⚠️ Conflict: ${[data.duty1,data.duty2].join(' or ')} is also on duty on ${conflicts[0].date} (within 7 days). Consider rotating.`;
+  } else {
+    warn.style.display='none';
+  }
+
+  await fetch('/api/duty',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const el = document.getElementById('alert-duty');
+  el.innerHTML = '<div class="alert alert-success">✅ Duty entry saved.</div>';
+  setTimeout(()=>el.innerHTML='',3000);
+  clearDutyForm();
+  loadDuty();
+}
+
+function editDuty(d){
+  document.getElementById('duty-id').value=d.id;
+  document.getElementById('duty-week').value=d.week_number;
+  document.getElementById('duty-date').value=d.date;
+  document.getElementById('duty-d1').value=d.duty1;
+  document.getElementById('duty-d2').value=d.duty2;
+  document.getElementById('duty-sb').value=d.standby||'';
+  document.getElementById('duty-remarks').value=d.remarks||'';
+  document.getElementById('add-title').textContent='✏️ Edit Duty Entry';
+  showTab('add', document.querySelectorAll('.tab')[1]);
+}
+
+async function deleteDuty(id){
+  if(!confirm('Delete this duty entry?')) return;
+  await fetch('/api/duty',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  loadDuty();
+}
+
+function clearDutyForm(){
+  ['duty-id','duty-remarks'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('duty-week').value=getWeekNumber(new Date());
+  document.getElementById('duty-date').value=today;
+  ['duty-d1','duty-d2','duty-sb'].forEach(id=>document.getElementById(id).selectedIndex=0);
+  document.getElementById('add-title').textContent='➕ Add Duty Entry';
+  document.getElementById('conflict-warn').style.display='none';
+}
+
+async function autoSchedule(){
+  const start = document.getElementById('auto-start').value;
+  const weeks = document.getElementById('auto-weeks').value;
+  if(!start){ alert('Please select a start date.'); return; }
+  const btn = event.target;
+  btn.textContent='⏳ Generating…'; btn.disabled=true;
+  const res = await fetch('/api/duty/autoschedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start_date:start,weeks:parseInt(weeks)})});
+  const d = await res.json();
+  btn.textContent='🤖 Generate Schedule'; btn.disabled=false;
+  if(!d.success){ alert(d.error||'Error generating schedule.'); return; }
+  document.getElementById('auto-preview').innerHTML = `
+    <div class="alert alert-success">✅ ${d.created.length} weeks scheduled successfully!</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Week</th><th>Date</th><th>Duty 1</th><th>Duty 2</th><th>Standby</th></tr></thead>
+      <tbody>${d.created.map(r=>`<tr>
+        <td>W${r.week}</td><td style="font-weight:600">${r.date}</td>
+        <td style="color:var(--navy);font-weight:600">${r.duty1}</td>
+        <td style="color:var(--navy);font-weight:600">${r.duty2}</td>
+        <td style="color:var(--gold);font-weight:600">${r.standby}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  loadDuty();
+}
+
+function showTab(name, el){
+  ['roster','add','auto'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% block title %}Welfare Fund{% endblock %}
+{% block page_title %}Welfare Fund{% endblock %}
+{% block content %}
+
+<!-- Balance Cards -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+  <div class="stat-card green">
+    <div class="stat-icon">💵</div>
+    <h2 id="bal-in">GH₵0.00</h2>
+    <p>Total Contributions</p>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-icon">📤</div>
+    <h2 id="bal-out">GH₵0.00</h2>
+    <p>Total Disbursed</p>
+  </div>
+  <div class="stat-card gold">
+    <div class="stat-icon">🏦</div>
+    <h2 id="bal-net">GH₵0.00</h2>
+    <p>Current Balance</p>
+    <div class="stat-trend" id="bal-trend"></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('contrib',this)">💵 Contributions</div>
+  <div class="tab" onclick="showTab('disb',this)">📤 Disbursements</div>
+  <div class="tab" onclick="showTab('tracker',this)">📊 Member Tracker</div>
+</div>
+
+<!-- ── CONTRIBUTIONS ── -->
+<div id="tab-contrib">
+<div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:flex-start">
+  <div class="card">
+    <div class="card-header"><h3>Record Contribution</h3></div>
+    <div id="alert-contrib"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Member *</label>
+      <select id="c-member"><option value="">-- Select Member --</option></select></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Date *</label><input type="date" id="c-date"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Amount (GH₵) *</label>
+      <input type="number" id="c-amount" placeholder="e.g. 50.00" step="0.01" min="0.01"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Receipt No.</label>
+      <input type="text" id="c-receipt" placeholder="Optional"></div>
+    <div class="form-group" style="margin-bottom:16px"><label>Notes</label>
+      <input type="text" id="c-notes" placeholder="e.g. Monthly welfare seed"></div>
+    <button class="btn btn-success" onclick="saveContrib()">💾 Save Contribution</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Contribution Records</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="search-contrib" placeholder="🔍 Search..." onkeyup="filterContrib()" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:150px">
+        <select id="filter-contrib-member" onchange="filterContrib()" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit">
+          <option value="">All Members</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Date</th><th>Member</th><th>Amount</th><th>Receipt</th><th>Notes</th><th>By</th></tr></thead>
+      <tbody id="contrib-body"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ── DISBURSEMENTS ── -->
+<div id="tab-disb" style="display:none">
+<div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:flex-start">
+  <div class="card">
+    <div class="card-header"><h3>Record Disbursement</h3></div>
+    <div id="alert-disb"></div>
+    <div id="low-balance-warn" class="alert alert-warn" style="display:none">⚠️ Low balance warning.</div>
+    <div class="form-group" style="margin-bottom:12px"><label>Member / Recipient *</label>
+      <select id="d-member"><option value="">-- Select Member --</option></select></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Date *</label><input type="date" id="d-date"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Purpose</label>
+      <select id="d-purpose" style="font-family:inherit">
+        <option>Birthday Gift</option><option>Sickness Support</option>
+        <option>Emergency Assistance</option><option>Prayer Support</option>
+        <option>Bereavement</option><option>Wedding Support</option><option>Other</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Amount (GH₵) *</label>
+      <input type="number" id="d-amount" placeholder="0.00" step="0.01" min="0.01" oninput="checkBalance()"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Approved By</label>
+      <input type="text" id="d-approved" value="Mr. Asare, Richard, Apostle Nick"></div>
+    <div class="form-group" style="margin-bottom:16px"><label>Notes</label>
+      <input type="text" id="d-notes" placeholder="Additional notes"></div>
+    <button class="btn btn-danger" onclick="saveDisb()">💾 Record Disbursement</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Disbursement Records</h3>
+      <select id="filter-disb-member" onchange="filterDisb()" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit">
+        <option value="">All Members</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Date</th><th>Member</th><th>Purpose</th><th>Amount</th><th>Approved By</th><th>By</th></tr></thead>
+      <tbody id="disb-body"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ── MEMBER TRACKER ── -->
+<div id="tab-tracker" style="display:none">
+  <div class="card">
+    <div class="card-header"><h3>Per-Member Welfare Tracker</h3></div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Summary of each member's contributions vs disbursements received.</p>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Member</th><th>Total Contributed</th><th>Total Received</th><th>Net</th><th>Contribution Bar</th></tr></thead>
+      <tbody id="tracker-body"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Monthly breakdown -->
+  <div class="card">
+    <div class="card-header"><h3>Monthly Contribution History</h3></div>
+    <div id="monthly-body"></div>
+  </div>
+</div>
+
+<script>
+let members = [];
+let allContribs = [];
+let allDisbs = [];
+let currentBalance = 0;
+const today = new Date().toISOString().split('T')[0];
+
+document.getElementById('c-date').value = today;
+document.getElementById('d-date').value = today;
+
+fetch('/api/members').then(r=>r.json()).then(data=>{
+  members = data;
+  ['c-member','d-member','filter-contrib-member','filter-disb-member'].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    data.forEach(m=>sel.innerHTML+=`<option value="${m.id}">${m.name}</option>`);
+  });
+  loadBalance();
+  loadContribs();
+  loadDisbs();
+});
+
+async function loadBalance(){
+  const res = await fetch('/api/welfare/balance');
+  const b = await res.json();
+  currentBalance = b.balance;
+  document.getElementById('bal-in').textContent  = 'GH₵' + b.total_in.toFixed(2);
+  document.getElementById('bal-out').textContent = 'GH₵' + b.total_out.toFixed(2);
+  document.getElementById('bal-net').textContent = 'GH₵' + b.balance.toFixed(2);
+  const trend = document.getElementById('bal-trend');
+  trend.textContent = b.balance > 0 ? `↑ Surplus of GH₵${b.balance.toFixed(2)}` : `↓ Deficit`;
+  trend.className = 'stat-trend ' + (b.balance >= 0 ? 'up' : 'down');
+
+  // Tracker tab
+  const max = Math.max(...b.per_member.map(m=>m.contributed),1);
+  document.getElementById('tracker-body').innerHTML = b.per_member.map(m=>{
+    const net = m.contributed - m.received;
+    return `<tr>
+      <td><a href="/members/${members.find(x=>x.name===m.name)?.id||'#'}" style="text-decoration:none;font-weight:700;color:var(--navy)">${m.name}</a></td>
+      <td style="font-weight:700;color:#166534">GH₵${parseFloat(m.contributed).toFixed(2)}</td>
+      <td style="font-weight:700;color:#991b1b">GH₵${parseFloat(m.received).toFixed(2)}</td>
+      <td style="font-weight:700;color:${net>=0?'#166534':'#991b1b'}">GH₵${net.toFixed(2)}</td>
+      <td style="width:200px">
+        <div class="progress"><div class="progress-bar" style="width:${(m.contributed/max*100).toFixed(0)}%;background:#22c55e"></div></div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Monthly
+  if(b.monthly && b.monthly.length){
+    document.getElementById('monthly-body').innerHTML = `
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>Month</th><th>Contributions</th><th>Bar</th></tr></thead>
+        <tbody>${b.monthly.map(m=>{
+          const maxM = Math.max(...b.monthly.map(x=>x.total),1);
+          return `<tr>
+            <td style="font-weight:600">${m.month}</td>
+            <td style="font-weight:700;color:#166534">GH₵${parseFloat(m.total).toFixed(2)}</td>
+            <td style="width:200px"><div class="progress"><div class="progress-bar" style="width:${(m.total/maxM*100).toFixed(0)}%;background:var(--gold)"></div></div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  }
+}
+
+async function loadContribs(){
+  const res = await fetch('/api/welfare/contributions');
+  allContribs = await res.json();
+  renderContribs(allContribs);
+}
+
+function renderContribs(data){
+  document.getElementById('contrib-body').innerHTML = data.length
+    ? data.map(r=>`<tr>
+        <td style="font-size:12px;color:var(--text-muted)">${r.date}</td>
+        <td><a href="/members/${r.member_id}" style="font-weight:700;text-decoration:none;color:var(--navy)">${r.name}</a></td>
+        <td style="font-weight:800;color:#166534">GH₵${parseFloat(r.amount).toFixed(2)}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${r.receipt_no||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${r.notes||''}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${r.recorded_by||''}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6"><div class="empty"><div class="empty-icon">💵</div><p>No contributions recorded</p></div></td></tr>';
+}
+
+function filterContrib(){
+  const q = (document.getElementById('search-contrib').value||'').toLowerCase();
+  const mid = document.getElementById('filter-contrib-member').value;
+  let data = allContribs;
+  if(q) data = data.filter(r=>r.name.toLowerCase().includes(q)||(r.notes||'').toLowerCase().includes(q));
+  if(mid) data = data.filter(r=>r.member_id==mid);
+  renderContribs(data);
+}
+
+async function loadDisbs(){
+  const res = await fetch('/api/welfare/disbursements');
+  allDisbs = await res.json();
+  renderDisbs(allDisbs);
+}
+
+function renderDisbs(data){
+  document.getElementById('disb-body').innerHTML = data.length
+    ? data.map(r=>`<tr>
+        <td style="font-size:12px;color:var(--text-muted)">${r.date}</td>
+        <td><a href="/members/${r.member_id}" style="font-weight:700;text-decoration:none;color:var(--navy)">${r.name}</a></td>
+        <td><span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${r.purpose}</span></td>
+        <td style="font-weight:800;color:#991b1b">GH₵${parseFloat(r.amount).toFixed(2)}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${r.approved_by||''}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${r.recorded_by||''}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📤</div><p>No disbursements recorded</p></div></td></tr>';
+}
+
+function filterDisb(){
+  const mid = document.getElementById('filter-disb-member').value;
+  renderDisbs(mid ? allDisbs.filter(r=>r.member_id==mid) : allDisbs);
+}
+
+function checkBalance(){
+  const amt = parseFloat(document.getElementById('d-amount').value)||0;
+  const warn = document.getElementById('low-balance-warn');
+  if(amt > currentBalance){
+    warn.style.display='flex';
+    warn.textContent=`⚠️ This amount (GH₵${amt.toFixed(2)}) exceeds the current balance (GH₵${currentBalance.toFixed(2)}).`;
+  } else {
+    warn.style.display='none';
+  }
+}
+
+async function saveContrib(){
+  const data = {
+    member_id: document.getElementById('c-member').value,
+    date: document.getElementById('c-date').value,
+    amount: document.getElementById('c-amount').value,
+    receipt_no: document.getElementById('c-receipt').value,
+    notes: document.getElementById('c-notes').value
+  };
+  if(!data.member_id||!data.amount){alert('Please select a member and enter amount.');return;}
+  await fetch('/api/welfare/contributions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  document.getElementById('alert-contrib').innerHTML='<div class="alert alert-success">✅ Contribution saved.</div>';
+  setTimeout(()=>document.getElementById('alert-contrib').innerHTML='',3000);
+  document.getElementById('c-amount').value='';
+  document.getElementById('c-receipt').value='';
+  document.getElementById('c-notes').value='';
+  loadContribs(); loadBalance();
+}
+
+async function saveDisb(){
+  const amt = parseFloat(document.getElementById('d-amount').value)||0;
+  if(amt > currentBalance && !confirm(`⚠️ This exceeds the current balance (GH₵${currentBalance.toFixed(2)}). Proceed anyway?`)) return;
+  const data = {
+    member_id: document.getElementById('d-member').value,
+    date: document.getElementById('d-date').value,
+    purpose: document.getElementById('d-purpose').value,
+    amount: document.getElementById('d-amount').value,
+    approved_by: document.getElementById('d-approved').value,
+    notes: document.getElementById('d-notes').value
+  };
+  if(!data.member_id||!data.amount){alert('Please select a member and enter amount.');return;}
+  await fetch('/api/welfare/disbursements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  document.getElementById('alert-disb').innerHTML='<div class="alert alert-success">✅ Disbursement recorded.</div>';
+  setTimeout(()=>document.getElementById('alert-disb').innerHTML='',3000);
+  document.getElementById('d-amount').value='';
+  document.getElementById('d-notes').value='';
+  loadDisbs(); loadBalance();
+}
+
+function showTab(name, el){
+  ['contrib','disb','tracker'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+{% endblock %}
